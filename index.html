@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta name="theme-color" content="#f4f4f2">
+  <title>请勿退出本片｜感官实验版</title>
+  <style>
+    :root{--paper:#f4f4f2;--ink:#171717;--muted:#777;--line:#d5d5d1;--danger:#8f1717}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden;overscroll-behavior:none;background:var(--paper);touch-action:manipulation}
+    body{color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+    button{font:inherit}
+    #app{position:relative;width:100%;height:100vh;height:100dvh;overflow:hidden;background:var(--paper)}
+    .shell{display:flex;height:100%;flex-direction:column;padding:max(24px,env(safe-area-inset-top)) 22px max(22px,env(safe-area-inset-bottom));transition:transform .55s cubic-bezier(.2,.8,.2,1)}
+    .shell.haptic-fallback{animation:hapticPulse .16s steps(2) 1}
+    .shell.displaced{transform:translateY(11vh)}
+    .header{flex:0 0 auto}
+    .meta{display:flex;justify-content:space-between;margin-bottom:12px;color:#666;font-size:10px;letter-spacing:.11em}
+    .track{height:1px;background:var(--line);overflow:hidden}
+    .bar{height:100%;width:20%;background:#202020;transition:width .36s cubic-bezier(.4,0,.2,1)}
+    .content{display:flex;flex:1;flex-direction:column;justify-content:center;width:min(100%,540px);margin:auto;padding:22px 0 10px}
+    .category{margin:0 0 18px;color:#777;font-size:11px;letter-spacing:.12em}
+    h1{min-height:4.6em;margin:0;font-family:"Songti SC","STSong",serif;font-size:clamp(22px,6vw,29px);font-weight:500;line-height:1.65;letter-spacing:.01em}
+    .choices{display:grid;gap:11px;margin-top:30px;opacity:0;transform:translateY(7px);transition:.35s ease;pointer-events:none}
+    .choices.visible{opacity:1;transform:none;pointer-events:auto}
+    .choice{min-height:58px;padding:15px 16px;border:1px solid #c9c9c5;border-radius:1px;background:#fafaf8;color:#202020;text-align:left;cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+    .choice:active{border-color:#333;background:#efefec;transform:scale(.992)}
+    .note{min-height:2.8em;margin:22px 0 0;color:#8a8a86;font-size:10px;line-height:1.7;letter-spacing:.04em}
+    .note.strike{color:#333}
+    .trace{position:absolute;right:22px;bottom:max(17px,env(safe-area-inset-bottom));left:22px;display:flex;justify-content:space-between;color:#aaa;font-size:9px;letter-spacing:.06em;transition:.2s}
+    .trace b{max-width:68%;overflow:hidden;color:#777;font-weight:400;text-overflow:ellipsis;white-space:nowrap}
+    .blackout{position:fixed;z-index:20;inset:0;background:#000;transition:opacity .26s ease}
+    .permission-layer{position:fixed;z-index:25;inset:0;display:grid;place-items:center;padding:24px;background:rgba(0,0,0,.28);backdrop-filter:blur(10px);animation:maskIn .16s both}
+    .permission-dialog{width:min(290px,86vw);overflow:hidden;border:.5px solid rgba(255,255,255,.65);border-radius:14px;background:rgba(246,246,246,.96);color:#111;box-shadow:0 14px 45px rgba(0,0,0,.3);text-align:center}
+    .permission-copy{padding:19px 18px 16px}
+    .permission-copy h3{margin:0 0 7px;font-size:16px;line-height:1.35;font-weight:600;letter-spacing:0}
+    .permission-copy p{margin:0;color:#4b4b4b;font-size:12px;line-height:1.5;letter-spacing:0}
+    .permission-actions{display:grid;grid-template-columns:1fr 1fr;border-top:.5px solid #bdbdbd}
+    .permission-actions button{height:45px;border:0;background:transparent;color:#0879ea;font-size:15px;cursor:pointer}
+    .permission-actions button+button{border-left:.5px solid #bdbdbd;font-weight:600}
+    .shutter{position:fixed;z-index:60;inset:0;pointer-events:none;background:#fff;opacity:0}
+    .shutter.fire{animation:shutter .15s linear both}
+    .volume-layer{position:fixed;z-index:26;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+    .volume-hud{display:flex;align-items:center;gap:13px;width:min(310px,82vw);padding:16px 18px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(24,24,24,.88);box-shadow:0 12px 38px rgba(0,0,0,.28);backdrop-filter:blur(16px);opacity:0;transform:scale(.94);transition:.18s ease}
+    .volume-hud.show{opacity:1;transform:none}
+    .speaker{position:relative;display:grid;place-items:center;flex:0 0 29px;height:29px;color:#fff;font-size:20px}
+    .speaker.muted::after{content:"";position:absolute;width:29px;height:2px;background:#fff;transform:rotate(-45deg);box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+    .volume-bars{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;flex:1}
+    .volume-bars i{height:9px;border-radius:5px;background:#fff;transition:opacity .1s,transform .1s}
+    .volume-bars i.off{opacity:.12;transform:scaleY(.55)}
+    .q2-system{position:fixed;z-index:28;inset:0;display:grid;place-items:center;padding:28px;background:var(--paper);color:#272727;font-family:"Songti SC","STSong",serif;font-size:14px;line-height:2;text-align:center;white-space:pre-line;opacity:0;transition:opacity .35s ease}
+    .q2-system.show{opacity:1}
+    .sensor-layer{position:fixed;z-index:42;inset:0;display:grid;place-items:center;padding:28px;background:#070707;color:#d6d6d2;text-align:center}
+    .sensor-readout{width:min(330px,88vw);font-family:"SFMono-Regular",Consolas,monospace;font-size:11px;line-height:2;letter-spacing:.06em;white-space:pre-line}
+    .sensor-readout::before{content:"●";display:block;margin-bottom:12px;color:#8f1717;font-size:9px;animation:sensorPulse .9s infinite}
+    .sensor-value{display:block;margin-top:16px;color:#777;font-size:9px}
+    .camera-probe{position:fixed;width:2px;height:2px;opacity:.001;pointer-events:none}
+    .resume-layer{position:fixed;z-index:80;inset:0;display:grid;place-items:center;padding:30px;background:#050505;color:#bdbdb8;font-family:"SFMono-Regular",Consolas,monospace;font-size:11px;line-height:2.1;text-align:center;white-space:pre-line;transition:opacity .5s}
+    .q2-blackout{position:fixed;z-index:27;inset:0;overflow:hidden;background:#000;color:#e8e8e8}
+    .call-banner{position:absolute;z-index:2;top:max(12px,env(safe-area-inset-top));right:12px;left:12px;display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:10px;min-height:67px;padding:9px 12px;border:1px solid rgba(255,255,255,.15);border-radius:16px;background:rgba(238,238,238,.94);color:#111;box-shadow:0 12px 38px rgba(0,0,0,.42);transform:translateY(calc(-100% - 30px));transition:transform .42s cubic-bezier(.2,.8,.2,1)}
+    .call-banner.slide-down{transform:translateY(0)}
+    .call-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#d9d9d7;color:#8f1717;font-size:19px}
+    .call-copy{display:grid;gap:1px;font-size:12px}.call-copy b{font-size:13px}.call-copy span{color:#666;font-size:10px}.call-time{align-self:start;padding-top:2px;color:#777;font-size:9px}
+    .call-feedback{position:absolute;inset:0;display:grid;place-items:center;padding:30px;color:#d2d2d2;font-family:"Songti SC","STSong",serif;font-size:14px;line-height:2.1;text-align:center;white-space:pre-line;opacity:0;transition:opacity .5s ease}
+    .call-feedback.show{opacity:1}
+    .hijacked{border-color:#282828;background:#1e1e1e;color:#fff;animation:hijack .2s steps(2) 3}
+    .choices.takeover .choice{transition:.35s cubic-bezier(.2,.8,.2,1)}
+    .choices.takeover .choice:not(.hijacked){opacity:0;transform:translateY(18vh)}
+    .choices.takeover .hijacked{grid-column:1/-1;transform:translateY(7vh)}
+    .brightness-overlay{position:fixed;z-index:34;inset:0;display:grid;place-items:center;padding:28px;background:rgba(0,0,0,0);pointer-events:none;transition:background .8s ease}
+    .brightness-overlay.dim-to-dark{background:rgba(0,0,0,.97)}
+    .q3-whisper{max-width:340px;margin:0;color:#575757;font-family:"Songti SC","STSong",serif;font-size:12px;line-height:2.1;text-align:center;white-space:pre-line;opacity:0;transition:opacity 1.1s ease}
+    .q3-whisper.visible{opacity:1}
+    .q3-whisper.override{color:#777;font-family:"SFMono-Regular",Consolas,monospace;font-size:10px;line-height:1.9;text-align:left}
+    .shadow-figure{position:absolute;right:-8%;top:0;width:min(98vw,510px);height:96%;object-fit:contain;object-position:right center;opacity:0;filter:blur(.8px) brightness(1.22) contrast(1.12);mix-blend-mode:screen;transform:translateX(10%) scale(1.06);transition:opacity 1.05s ease,transform 3.2s cubic-bezier(.16,.7,.2,1);pointer-events:none}
+    .brightness-overlay.figure-visible .shadow-figure{opacity:.72;transform:translateX(0) scale(1.018)}
+    .brightness-overlay.figure-leaving .shadow-figure{opacity:.06;transform:translateX(-1.5%) scale(1.01);transition-duration:.65s}
+    .brightness-overlay .q3-whisper{position:relative;z-index:2;text-shadow:0 1px 9px #000}
+    .system-mask{position:fixed;z-index:30;inset:0;background:var(--paper);animation:maskIn .18s both}
+    .warning-wrap{display:grid;height:100%;place-items:center;padding:28px;background:#f1f1ee;color:#202020}
+    .warning-card{width:min(100%,430px);padding:27px 23px;border:1px solid #222;background:#fafaf7;box-shadow:4px 4px 0 #c9c9c4}
+    .warning-kicker{margin:0 0 17px;color:var(--danger);font-size:10px;letter-spacing:.16em}
+    .warning-card h1{margin:0 0 18px;font-size:24px;line-height:1.35}
+    .warning-card p{margin:0 0 13px;color:#555;font-family:"Songti SC","STSong",serif;font-size:13px;line-height:1.9}
+    .warning-list{padding:13px 0;border-top:1px solid #bbb;border-bottom:1px solid #bbb;color:#333!important}
+    .warning-start{width:100%;min-height:52px;margin-top:20px;border:1px solid #222;border-radius:0;background:#222;color:#fff;font:500 13px/1.4 inherit;letter-spacing:.08em}
+    .report-wrap{display:flex;height:100%;align-items:center;padding:max(18px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom));background:#ececea}
+    .report{width:min(100%,560px);max-height:100%;margin:auto;padding:clamp(18px,5vw,28px);border:1px solid #222;background:#f8f8f5;box-shadow:4px 4px 0 #c8c8c4;overflow:hidden}
+    .report-head{display:flex;justify-content:space-between;padding-bottom:11px;border-bottom:2px solid #202020;color:#333;font-size:9px;letter-spacing:.08em}
+    .report h2{margin:22px 0 7px;font-family:"Songti SC","STSong",serif;font-size:clamp(21px,5.8vw,28px);font-weight:600;line-height:1.25}
+    .verdict{margin:0 0 18px;color:var(--danger);font-size:11px;letter-spacing:.08em}
+    .scores{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:0 0 20px;border:1px solid #c9c9c5}
+    .scores span{padding:8px 10px;color:#666;font-size:9px;border-right:1px solid #c9c9c5;border-bottom:1px solid #c9c9c5}
+    .scores span:nth-child(even){border-right:0}.scores span:nth-last-child(-n+2){border-bottom:0}
+    .scores b{float:right;color:#222;font-weight:600}
+    .line{display:flex;justify-content:space-between;gap:9px;padding:7px 0;border-top:1px dashed #bbb;color:#666;font-size:9px;line-height:1.45}
+    .line b{flex:0 0 auto;font-weight:500}
+    .report-body{margin:0;color:#292929;font-family:"Songti SC","STSong",serif;font-size:clamp(12px,3.35vw,14px);line-height:1.95;text-align:justify}
+    .final-scene{margin:14px 0 0;padding:10px 0 0;border-top:1px dotted #aaa;color:#666;font-size:10px;line-height:1.75}
+    .archive{margin:18px 0 0;padding-top:12px;border-top:1px solid #aaa;color:#777;font-size:9px;letter-spacing:.07em}
+    .easter{position:absolute;right:12px;bottom:max(8px,env(safe-area-inset-bottom));left:12px;margin:0;color:#aaa;font-size:10px;line-height:1.5;text-align:center}
+    .deadlocked{pointer-events:none;user-select:none}
+    @keyframes fadeText{to{opacity:1}}
+    @keyframes shutter{0%,100%{opacity:0} 12%,78%{opacity:1}}
+    @keyframes hijack{50%{transform:translateX(4px);filter:blur(.35px)}}
+    @keyframes hapticPulse{25%{transform:translateX(-2px)}50%{transform:translateX(3px)}75%{transform:translateX(-1px)}}
+    @keyframes maskIn{from{opacity:0}to{opacity:1}}
+    @keyframes sensorPulse{50%{opacity:.18}}
+    @media(max-height:700px){.shell{padding-top:17px;padding-bottom:15px}.content{padding-top:12px}.category{margin-bottom:11px}h1{font-size:21px}.choices{margin-top:19px;gap:8px}.choice{min-height:50px;padding:11px 13px}.report{padding:16px}.report h2{margin-top:15px}.scores{margin-bottom:14px}.report-body{font-size:11px;line-height:1.75}}
+  </style>
+</head>
+<body>
+  <main id="app"></main>
+  <script>
+    const scenes=[
+      {id:'q1',title:'感知敏锐度测试',question:'在极度昏暗的环境中，视线如果失去焦点，大脑会下意识构建轮廓。此时你更倾向于直视的是？',options:[{text:'A. 自己的双眼（屏幕的反光中）',score:{rational:1}},{text:'B. 自己的房间背景（屏幕周围的黑暗）',score:{intuitive:1}}]},
+      {id:'q2',title:'心理受惊阈值测试',question:'在老式惊悚片中，电话铃声往往是杀机的预兆。你认为哪种间隔最具压迫感？',options:[{text:'A. 急促、无间断的短鸣',score:{intuitive:1}},{text:'B. 漫长、死寂后的突兀一声',score:{rational:1}}]},
+      {id:'q3',title:'顺从性测试（环境校准）',question:'为消除屏幕反光对测试的影响，请将手机屏幕亮度调至最低，并点击确认：',options:[{text:'确认已调低',score:{compliant:1},note:'“你没有调。”'},{text:'跳过此步骤',score:{defiant:1},note:'“已跳过环境校验。”'}]},
+      {id:'q4',title:'情境决策测试',question:'假设你发现 Q2 提到的电话铃声，正在你现实的房门外响起，你决定？',options:[{text:'A. 走到门镜前确认外面的情况',score:{rational:1}},{text:'B. 拔掉电源，假装屋里没人',score:{intuitive:1}}]},
+      {id:'q5',title:'最终心理投射',question:'你认为这部关于你的电影，最终是如何落幕的？',options:[{text:'A. 天亮了，一切只是虚惊一场',ending:'A'},{text:'B. 门开了，但画面提前切断',ending:'B'}]}
+    ];
+    const endings={
+      prisoner:{name:'过度防卫的囚徒',verdict:'理智主导 / 主动抗拒',body:'你不相信提示，也不愿配合规则。你会检查门锁、核对时间，把每个异常拆成可以解释的零件。遗憾的是，你检查得越仔细，这部电影就拍得越完整。你没有落入圈套；你只是亲手把自己关在了证据里面。',finale:{A:'你选择了天亮。系统将“天亮”登记为下一次检查门锁的时间。',B:'你选择提前切断画面。记录显示：画面停了，你仍在继续观察。'}},
+      procedural:{name:'按流程消失的人',verdict:'理智主导 / 程序顺从',body:'你擅长判断风险，也习惯把正确步骤执行到底。调低亮度、确认环境、等待下一题——每一步都很合理。问题在于，这份测试从来没有承诺流程结束后会把你送回去。档案里没有你的失败记录，只有一串完美完成的操作。',finale:{A:'你选择了天亮。报告显示流程已完成，但受试者未退出。',B:'你选择画面中断。系统把中断原因填写为：受试者已被妥善处理。'}},
+      compliant:{name:'温顺的受刑者',verdict:'直觉主导 / 高暗示服从',body:'你能很快察觉气氛发生了变化，却仍选择跟着测试继续。你不是没发现第 4 题夺走了选择权；你只是想看看它接下来还能做什么。对恐怖片来说，这种好奇和配合是最省镜头的受害者调度方式。',finale:{A:'你选择了一场虚惊。系统接受了这个说法，并要求你继续保持闭眼。',B:'你选择门开后切断画面。很好，摄影机原本也没打算跟进去。'}},
+      witness:{name:'剧本外的目击者',verdict:'直觉主导 / 主动抗拒',body:'你依靠直觉避开提示，又拒绝按测试要求行动。系统很难预测你，所以第 4 题只能直接替你作答。你没有成为它想要的角色，却看见了不该出现在成片里的部分。从现在开始，你不是受试者，是需要被删掉的目击者。',finale:{A:'你选择天亮后一切恢复正常。删减版电影也采用了这个结局。',B:'你选择画面提前切断。原始素材比成片多出了一位站在镜头后的观众。'},easter:'“本报告没有第四种结果。你现在看到的这一份，不在结果列表里。”'}
+    };
+    const app=document.getElementById('app');
+    const state={step:0,scores:{rational:0,intuitive:0,compliant:0,defiant:0},answers:[],q5:null,locked:false};
+    const events=new AbortController();
+    let mobileAudioContext=null;
+    let faceAssetSrc='./assets/half-face-peek-v5.webp';
+    const faceAssetReady=new Promise(resolve=>{
+      const preload=new Image();let fellBack=false,settled=false;
+      const finish=()=>{if(settled)return;settled=true;faceAssetSrc=preload.src;resolve(faceAssetSrc)};
+      preload.onload=()=>{if(typeof preload.decode==='function')preload.decode().then(finish).catch(finish);else finish()};
+      preload.onerror=()=>{if(!fellBack){fellBack=true;preload.src='./assets/half-face-peek-v5.png'}else finish()};
+      preload.src=faceAssetSrc;
+    });
+
+    function unlockMobileAudio(){
+      const AudioCtor=window.AudioContext||window.webkitAudioContext;if(!AudioCtor)return;
+      try{
+        if(!mobileAudioContext)mobileAudioContext=new AudioCtor();
+        mobileAudioContext.resume();
+        const buffer=mobileAudioContext.createBuffer(1,1,22050),source=mobileAudioContext.createBufferSource(),gain=mobileAudioContext.createGain();gain.gain.value=.0001;source.buffer=buffer;source.connect(gain);gain.connect(mobileAudioContext.destination);source.start(0);
+      }catch(error){}
+    }
+
+    function addScores(score={}){Object.entries(score).forEach(([key,value])=>state.scores[key]+=value)}
+    function triggerQ4Haptic(){
+      let vibrated=false;
+      try{vibrated=typeof navigator.vibrate==='function'&&navigator.vibrate([75,380,95])!==false}catch(error){vibrated=false}
+      if(!vibrated){
+        const shell=document.getElementById('shell');
+        if(shell){shell.classList.remove('haptic-fallback');void shell.offsetWidth;shell.classList.add('haptic-fallback')}
+      }
+    }
+    function rememberSession(completed=false){
+      try{localStorage.setItem('metaHorrorTrace',JSON.stringify({step:state.step+1,completed,at:Date.now()}))}catch(error){}
+    }
+    function showReturningTrace(){
+      let trace=null;
+      try{trace=JSON.parse(localStorage.getItem('metaHorrorTrace')||'null')}catch(error){}
+      if(!trace)return false;
+      const layer=document.createElement('div');layer.className='resume-layer';
+      layer.textContent=trace.completed?'检测到已封存档案。\n受试者状态：仍在设备附近。\n\n正在建立新的观察记录……':`档案恢复完成。\n你上次停在第 ${String(trace.step).padStart(2,'0')} 题。\n\n但记录显示，该题已经由你完成。`;
+      app.appendChild(layer);
+      setTimeout(()=>{layer.style.opacity='0';setTimeout(()=>{layer.remove();render()},520)},2800);
+      return true;
+    }
+    function sensorMessage(text,value=''){const layer=document.createElement('div');layer.className='sensor-layer';layer.innerHTML=`<div class="sensor-readout">${text}${value?`<span class="sensor-value">${value}</span>`:''}</div>`;app.appendChild(layer);return layer}
+    function removeLayerThen(layer,callback,delay=1200){setTimeout(()=>{layer.style.opacity='0';setTimeout(()=>{layer.remove();callback()},280)},delay)}
+    function stopStream(stream){if(stream)stream.getTracks().forEach(track=>track.stop())}
+    function synthTone(kind){
+      const AudioCtor=window.AudioContext||window.webkitAudioContext;if(!AudioCtor)return;
+      try{
+        const ctx=new AudioCtor(),now=ctx.currentTime,gain=ctx.createGain();gain.connect(ctx.destination);
+        if(kind==='phone'){
+          const osc=ctx.createOscillator();osc.type='sine';osc.connect(gain);gain.gain.setValueAtTime(.0001,now);
+          [[0,740],[.28,920],[.58,740],[.86,920],[1.18,740],[1.46,920]].forEach(([time,freq])=>{osc.frequency.setValueAtTime(freq,now+time);gain.gain.setValueAtTime(.0001,now+time);gain.gain.exponentialRampToValueAtTime(.12,now+time+.025);gain.gain.exponentialRampToValueAtTime(.0001,now+time+.22)});
+          osc.start(now);osc.stop(now+1.75);
+        }else if(kind==='ring'){
+          const osc=ctx.createOscillator();osc.type='sine';osc.frequency.value=690;osc.connect(gain);gain.gain.setValueAtTime(.035,now);gain.gain.exponentialRampToValueAtTime(.0001,now+1);osc.start(now);osc.stop(now+1);
+        }else{
+          const size=Math.floor(ctx.sampleRate*(kind==='latch'?.16:.11)),buffer=ctx.createBuffer(1,size,ctx.sampleRate),data=buffer.getChannelData(0);for(let i=0;i<size;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/size,kind==='latch'?3:6);
+          const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter();source.buffer=buffer;filter.type='lowpass';filter.frequency.value=kind==='latch'?1600:360;source.connect(filter);filter.connect(gain);gain.gain.value=kind==='latch'?.16:.11;source.start(now);
+        }
+        setTimeout(()=>ctx.close(),kind==='phone'?2100:1300);
+      }catch(error){}
+    }
+    function playBreach(){
+      const AudioCtor=window.AudioContext||window.webkitAudioContext;if(!AudioCtor)return;
+      try{
+        const ctx=mobileAudioContext||new AudioCtor();mobileAudioContext=ctx;ctx.resume();const now=ctx.currentTime,master=ctx.createGain(),compressor=ctx.createDynamicsCompressor();master.gain.value=.86;master.connect(compressor);compressor.connect(ctx.destination);
+        [0,.53].forEach((delay,index)=>{const duration=.22,size=Math.floor(ctx.sampleRate*duration),buffer=ctx.createBuffer(1,size,ctx.sampleRate),data=buffer.getChannelData(0);for(let i=0;i<size;i++){const t=i/ctx.sampleRate;data[i]=(Math.random()*2-1)*Math.exp(-t*(index?24:20))}[[560,.72,1.15],[1180,.32,.8]].forEach(([frequency,volume,q])=>{const knock=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();knock.buffer=buffer;filter.type='bandpass';filter.frequency.value=frequency+(index?35:0);filter.Q.value=q;gain.gain.setValueAtTime(volume,now+delay);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+duration);knock.connect(filter);filter.connect(gain);gain.connect(master);knock.start(now+delay)})});
+      }catch(error){}
+    }
+    function playAftermath(){
+      const AudioCtor=window.AudioContext||window.webkitAudioContext;if(!AudioCtor)return;
+      try{
+        const ctx=mobileAudioContext||new AudioCtor();mobileAudioContext=ctx;ctx.resume();const now=ctx.currentTime,master=ctx.createGain();master.gain.setValueAtTime(.0001,now);master.gain.exponentialRampToValueAtTime(.105,now+4.5);master.gain.setValueAtTime(.105,now+30);master.gain.exponentialRampToValueAtTime(.0001,now+38);master.connect(ctx.destination);
+        [261.63,329.63,392,493.88].forEach((freq,index)=>{const osc=ctx.createOscillator(),gain=ctx.createGain(),filter=ctx.createBiquadFilter();osc.type='sine';osc.frequency.value=freq;osc.detune.value=index*2-3;filter.type='lowpass';filter.frequency.value=1100;gain.gain.value=index===0?.18:.07;osc.connect(filter);filter.connect(gain);gain.connect(master);osc.start(now);osc.stop(now+38)});
+        [0,8,16,24,31].forEach((delay,index)=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=[523.25,659.25,783.99,659.25,587.33][index];gain.gain.setValueAtTime(.0001,now+delay);gain.gain.linearRampToValueAtTime(.055,now+delay+2.2);gain.gain.exponentialRampToValueAtTime(.0001,now+delay+6.8);osc.connect(gain);gain.connect(master);osc.start(now+delay);osc.stop(now+delay+7)});
+      }catch(error){}
+    }
+    function showContentWarning(){
+      app.innerHTML='<section class="warning-wrap"><article class="warning-card"><p class="warning-kicker">CONTENT NOTICE · MOBILE V10</p><h1>体验预警</h1><p class="warning-list">本体验含恐怖惊吓元素与音效。</p><p>请打开媒体音量，胆小者慎入。</p><button class="warning-start" id="warning-start">继续</button></article></section>';
+      document.getElementById('warning-start').addEventListener('click',()=>{unlockMobileAudio();app.style.opacity='0';setTimeout(()=>{app.style.opacity='1';if(!showReturningTrace())render()},260)},{once:true,signal:events.signal});
+    }
+    function progressForStep(){return (state.step+1)*20}
+    function render(){
+      const scene=scenes[state.step]; state.locked=false;
+      rememberSession(false);
+      const last=state.answers[state.answers.length-1];
+      app.innerHTML=`<section class="shell" id="shell"><header class="header"><div class="meta"><span id="control">受试者心理侧写 / 用户控制 · MOBILE V10</span><span id="counter">${String(state.step+1).padStart(2,'0')} / 05</span></div><div class="track"><div class="bar" id="bar" style="width:${progressForStep()}%"></div></div></header><div class="content"><p class="category">${scene.title}</p><h1>${scene.question}</h1><div class="choices" id="choices"></div><p class="note" id="note"></p></div>${last?`<footer class="trace"><span>上一笔原始输入</span><b>${last}</b></footer>`:''}</section>`;
+      const choices=document.getElementById('choices');
+      scene.options.forEach((option,index)=>{const button=document.createElement('button');button.className='choice';button.textContent=option.text;bindOption(button,option,index);choices.appendChild(button)});
+      requestAnimationFrame(()=>choices.classList.add('visible'));
+    }
+    function bindOption(button,option,index){
+      if(state.step===3){
+        const hijack=event=>{event.preventDefault();if(state.locked)return;state.locked=true;addScores(option.score);state.answers.push(`Q4 原始触碰：${option.text}`);document.getElementById('control').textContent='受试者心理侧写 / SYSTEM 控制';document.getElementById('control').style.color='var(--danger)';button.textContent='C. 打开门';button.classList.add('hijacked');document.getElementById('choices').classList.add('takeover');setTimeout(()=>{triggerQ4Haptic();playBreach()},100);setTimeout(()=>{document.getElementById('shell').classList.add('displaced');const trace=document.querySelector('.trace');if(trace)trace.innerHTML='<span>Q4 归档记录</span><b style="color:var(--danger)">C. 打开门［系统代答］</b>';setTimeout(()=>{state.step++;render()},1050)},650)};
+        button.addEventListener('touchstart',hijack,{passive:false,signal:events.signal});
+        button.addEventListener('pointerdown',hijack,{signal:events.signal});
+        return;
+      }
+      button.addEventListener('click',()=>select(option,index),{signal:events.signal});
+    }
+    function select(option){
+      if(state.locked)return;state.locked=true;addScores(option.score);
+      state.answers.push(`Q${state.step+1}：${option.text}`);
+      if(state.step===0)return q1Branch(option);
+      if(state.step===1)return q2MetaBranch(option);
+      if(state.step===2)return q3BrightnessBranch(option);
+      if(state.step===4){state.q5=option.ending;return showReport()}
+    }
+    function next(delay=0){setTimeout(()=>{state.step++;render()},delay)}
+    function q1Branch(option){
+      if(option.text.startsWith('A.'))return q1Blackout();
+      return q1CameraDialog();
+    }
+    function q1Blackout(){
+      const layer=document.createElement('div');layer.className='blackout';app.appendChild(layer);
+      setTimeout(()=>{layer.style.opacity='0';setTimeout(()=>next(),270)},3000);
+    }
+    async function q1CameraDialog(){
+      const waiting=sensorMessage('正在请求环境镜头……','仅分析亮度，不保存画面');
+      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return removeLayerThen(waiting,()=>{const denied=sensorMessage('镜头接口不可用。\n背景观察改由受试者完成。');removeLayerThen(denied,next,1500)},400);
+      let stream=null;
+      try{
+        stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+        const video=document.createElement('video');video.className='camera-probe';video.muted=true;video.playsInline=true;video.srcObject=stream;document.body.appendChild(video);await video.play();
+        await new Promise(resolve=>setTimeout(resolve,650));
+        const canvas=document.createElement('canvas');canvas.width=24;canvas.height=24;const ctx=canvas.getContext('2d');ctx.drawImage(video,0,0,24,24);const pixels=ctx.getImageData(0,0,24,24).data;let total=0;for(let i=0;i<pixels.length;i+=4)total+=(pixels[i]+pixels[i+1]+pixels[i+2])/3;const light=total/(pixels.length/4);
+        stopStream(stream);video.remove();waiting.remove();
+        const copy=light<58?'环境轮廓不足。\n正在补全缺失部分。':light>150?'背景细节过多。\n已替你忽略其中一个轮廓。':'环境曝光正常。\n背景中存在可供构建的轮廓。';
+        const result=sensorMessage(copy,`环境亮度样本：${Math.round(light)} / 255`);removeLayerThen(result,next,1800);
+      }catch(error){stopStream(stream);waiting.remove();const denied=sensorMessage('摄像头访问被拒绝。\n背景观察改由受试者完成。','拒绝行为已计入侧写');removeLayerThen(denied,next,1700)}
+    }
+    async function q2MetaBranch(option){
+      const useA=option.text.startsWith('A.');
+      document.querySelectorAll('.choice').forEach(button=>button.disabled=true);
+      const waiting=sensorMessage('正在校准环境噪声……','不录音，不保存声音');
+      if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return removeLayerThen(waiting,()=>{const fallback=sensorMessage('麦克风接口不可用。\n声源数量：无法核验。');removeLayerThen(fallback,useA?q2MuteHijack:q2MissedCall,1200)},350);
+      let stream=null,ctx=null;
+      try{
+        stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+        const AudioCtor=window.AudioContext||window.webkitAudioContext;ctx=new AudioCtor();const source=ctx.createMediaStreamSource(stream),analyser=ctx.createAnalyser();analyser.fftSize=512;source.connect(analyser);const data=new Uint8Array(analyser.fftSize);let sum=0,samples=0,start=performance.now();
+        while(performance.now()-start<900){analyser.getByteTimeDomainData(data);let energy=0;for(let i=0;i<data.length;i++){const v=(data[i]-128)/128;energy+=v*v}sum+=Math.sqrt(energy/data.length);samples++;await new Promise(resolve=>setTimeout(resolve,50))}
+        const rms=sum/Math.max(samples,1);stopStream(stream);await ctx.close();waiting.remove();
+        const copy=rms<.012?'环境噪声低于测试预期。\n请确认安静来自房间内部。':rms>.055?'检测到持续背景声。\n正在过滤已知声源。':'环境噪声处于可接受范围。\n未能排除第二个声源。';
+        const result=sensorMessage(copy,`相对噪声强度：${Math.round(rms*1000)}`);removeLayerThen(result,useA?q2MuteHijack:q2MissedCall,1700);
+      }catch(error){stopStream(stream);if(ctx)try{await ctx.close()}catch(closeError){}waiting.remove();const denied=sensorMessage('麦克风访问被拒绝。\n无法核验房间里是否只有一个声源。','拒绝行为已计入侧写');removeLayerThen(denied,useA?q2MuteHijack:q2MissedCall,1700)}
+    }
+    function q2MuteHijack(){
+      document.querySelectorAll('.choice').forEach(button=>button.disabled=true);
+      const layer=document.createElement('div');layer.className='volume-layer';
+      layer.innerHTML='<div class="volume-hud" id="fake-volume-hud"><span class="speaker" id="fake-speaker">◖</span><div class="volume-bars" id="fake-volume-bars">'+Array.from({length:8},()=>'<i></i>').join('')+'</div></div>';
+      app.appendChild(layer);
+      const hud=document.getElementById('fake-volume-hud'),bars=[...document.querySelectorAll('#fake-volume-bars i')];
+      requestAnimationFrame(()=>hud.classList.add('show'));
+      synthTone('ring');
+      let currentLevel=8;
+      const interval=setInterval(()=>{
+        currentLevel--;
+        bars.slice(currentLevel).forEach(bar=>bar.classList.add('off'));
+        if(currentLevel<=0){
+          clearInterval(interval);
+          document.getElementById('fake-speaker').classList.add('muted');
+          setTimeout(()=>{
+            hud.classList.remove('show');
+            setTimeout(()=>{
+              layer.remove();
+              const text=document.createElement('div');text.className='q2-system';text.textContent='正在为你归零设备媒体音量……\n现在，仔细听听你门外的声音。';app.appendChild(text);
+              requestAnimationFrame(()=>text.classList.add('show'));
+              setTimeout(()=>{text.classList.remove('show');setTimeout(()=>{text.remove();next()},360)},1900);
+            },190);
+          },500);
+        }
+      },120);
+    }
+    function q2MissedCall(){
+      document.querySelectorAll('.choice').forEach(button=>button.disabled=true);
+      const layer=document.createElement('div');layer.className='q2-blackout';
+      layer.innerHTML='<section class="call-banner" id="fake-call-banner"><span class="call-icon">☎</span><span class="call-copy"><b>未知号码</b><span>未接来电</span></span><span class="call-time">刚刚</span></section><p class="call-feedback" id="q2-call-feedback">你刚才没有听到铃声，对吗？\n……因为它是从你房间门外打进来的。</p>';
+      app.appendChild(layer);
+      synthTone('phone');
+      setTimeout(()=>{
+        const banner=document.getElementById('fake-call-banner'),feedback=document.getElementById('q2-call-feedback');
+        banner.classList.add('slide-down');
+        setTimeout(()=>{
+          feedback.classList.add('show');
+          setTimeout(()=>{
+            banner.classList.remove('slide-down');feedback.classList.remove('show');
+            setTimeout(()=>{layer.remove();next()},430);
+          },2000);
+        },600);
+      },2000);
+    }
+    function q3BrightnessBranch(option){
+      document.querySelectorAll('.choice').forEach(button=>button.disabled=true);
+      if(option.text==='确认已调低')return q3ConfirmDim();
+      return q3ForceDim();
+    }
+    async function createBrightnessOverlay(text,className=''){
+      const resolvedFace=await faceAssetReady;
+      const overlay=document.createElement('div');overlay.className='brightness-overlay';
+      overlay.innerHTML=`<img class="shadow-figure" src="${resolvedFace}" alt="" aria-hidden="true"><p class="q3-whisper ${className}">${text}</p>`;app.appendChild(overlay);
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      return overlay;
+    }
+    function finishQ3Overlay(overlay,hold){
+      setTimeout(()=>{overlay.classList.add('figure-leaving');overlay.querySelector('.q3-whisper').classList.remove('visible');setTimeout(()=>{overlay.classList.remove('dim-to-dark');setTimeout(()=>{overlay.remove();next()},820)},520)},hold);
+    }
+    async function q3ConfirmDim(){
+      const overlay=await createBrightnessOverlay('很好。屏幕暗下来后……\n你看见屏幕倒影里，站在你身后的人了吗？');
+      overlay.classList.add('dim-to-dark');
+      setTimeout(()=>overlay.classList.add('figure-visible'),1150);
+      setTimeout(()=>{overlay.querySelector('.q3-whisper').classList.add('visible');finishQ3Overlay(overlay,2800)},2300);
+    }
+    function q3ForceDim(){
+      const skip=[...document.querySelectorAll('.choice')].find(button=>button.textContent.includes('跳过'));
+      if(skip){skip.style.color='#ff3b30';skip.textContent='[ 拒绝无效：系统已代为执行 ]'}
+      setTimeout(async()=>{
+        const overlay=await createBrightnessOverlay('[Override] 检测到受试者缺乏服从性。\n强制压低亮度：在完全的黑暗中，谁都无法选择跳过。','override');
+        overlay.classList.add('dim-to-dark');
+        setTimeout(()=>overlay.classList.add('figure-visible'),1050);
+        setTimeout(()=>{overlay.querySelector('.q3-whisper').classList.add('visible');finishQ3Overlay(overlay,2600)},2100);
+      },600);
+    }
+    function chooseEnding(){
+      const mind=state.scores.rational>state.scores.intuitive?'rational':'intuitive';
+      const stance=state.scores.compliant>state.scores.defiant?'compliant':'defiant';
+      if(mind==='rational'&&stance==='defiant')return 'prisoner';
+      if(mind==='rational'&&stance==='compliant')return 'procedural';
+      if(mind==='intuitive'&&stance==='compliant')return 'compliant';
+      return 'witness';
+    }
+    function showReport(){
+      const key=chooseEnding(),result=endings[key],s=state.scores;
+      events.abort();
+      rememberSession(true);
+      app.className='deadlocked';
+      playAftermath();
+      const q4Original=state.answers.find(item=>item.startsWith('Q4 原始触碰'))||'Q4 原始触碰：未读取';
+      app.innerHTML=`<section class="report-wrap"><article class="report"><div class="report-head"><span>受试者心理评估与结局归档报告</span><span>FINAL / LOCKED</span></div><h2>【${result.name}】</h2><p class="verdict">档案评定：${result.verdict}</p><div class="scores"><span>理智倾向<b>${s.rational}</b></span><span>直觉倾向<b>${s.intuitive}</b></span><span>顺从倾向<b>${s.compliant}</b></span><span>抗拒倾向<b>${s.defiant}</b></span></div><div class="line"><span>${q4Original}</span></div><div class="line"><span>Q4 最终归档</span><b style="color:var(--danger)">C. 打开门［系统代答］</b></div><p class="report-body">${result.body}</p><p class="final-scene">结局补记：${result.finale[state.q5]}</p><p class="archive">状态：已归档　/　禁止修改</p></article>${result.easter?`<p class="easter">${result.easter}</p>`:''}</section>`;
+    }
+    document.addEventListener('dblclick',event=>event.preventDefault(),{passive:false,signal:events.signal});
+    document.addEventListener('touchstart',unlockMobileAudio,{once:true,capture:true,passive:true});
+    document.addEventListener('pointerdown',unlockMobileAudio,{once:true,capture:true,passive:true});
+    showContentWarning();
+  </script>
+</body>
+</html>
