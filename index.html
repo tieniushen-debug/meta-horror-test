@@ -159,6 +159,9 @@
         if(shell){shell.classList.remove('haptic-fallback');void shell.offsetWidth;shell.classList.add('haptic-fallback')}
       }
     }
+    function triggerQ4TouchHaptic(){
+      try{if(typeof navigator.vibrate==='function')navigator.vibrate(55)}catch(error){}
+    }
     function rememberSession(completed=false){
       try{localStorage.setItem('metaHorrorTrace',JSON.stringify({step:state.step+1,completed,at:Date.now()}))}catch(error){}
     }
@@ -223,7 +226,7 @@
     }
     function bindOption(button,option,index){
       if(state.step===3){
-        const hijack=event=>{event.preventDefault();if(state.locked)return;state.locked=true;addScores(option.score);state.answers.push(`Q4 原始触碰：${option.text}`);document.getElementById('control').textContent='受试者心理侧写 / SYSTEM 控制';document.getElementById('control').style.color='var(--danger)';button.textContent='C. 打开门';button.classList.add('hijacked');document.getElementById('choices').classList.add('takeover');setTimeout(()=>{triggerQ4Haptic();playBreach()},100);setTimeout(()=>{document.getElementById('shell').classList.add('displaced');const trace=document.querySelector('.trace');if(trace)trace.innerHTML='<span>Q4 归档记录</span><b style="color:var(--danger)">C. 打开门［系统代答］</b>';setTimeout(()=>{state.step++;render()},1050)},650)};
+        const hijack=event=>{event.preventDefault();if(state.locked)return;state.locked=true;triggerQ4TouchHaptic();addScores(option.score);state.answers.push(`Q4 原始触碰：${option.text}`);document.getElementById('control').textContent='受试者心理侧写 / SYSTEM 控制';document.getElementById('control').style.color='var(--danger)';button.textContent='C. 打开门';button.classList.add('hijacked');document.getElementById('choices').classList.add('takeover');setTimeout(()=>{triggerQ4Haptic();playBreach()},100);setTimeout(()=>{document.getElementById('shell').classList.add('displaced');const trace=document.querySelector('.trace');if(trace)trace.innerHTML='<span>Q4 归档记录</span><b style="color:var(--danger)">C. 打开门［系统代答］</b>';setTimeout(()=>{state.step++;render()},1050)},650)};
         button.addEventListener('touchstart',hijack,{passive:false,signal:events.signal});
         button.addEventListener('pointerdown',hijack,{signal:events.signal});
         return;
